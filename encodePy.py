@@ -3,11 +3,11 @@ import sys, subprocess, os.path, re, os, glob
 
 # 作業ストレージの存在の有無確認・作業ディレクトリの作成
 if os.path.isdir(os.environ.get('hdd_dir')) == False:
-	os.makedirs(os.environ.get('hdd_dir'))
+    os.makedirs(os.environ.get('hdd_dir'))
 elif os.path.isdir(os.environ.get('ram_dir')) == False:
-	os.makedirs(os.environ.get('ram_dir'))	
+    os.makedirs(os.environ.get('ram_dir'))	
 else:
-		temp_dir = os.environ.get('ram_dir')
+    temp_dir = os.environ.get('ram_dir')
 
 # コマンドプロンプト上でfsutil volume diskfreeを実行し結果をバイト文字列にしてdiskfreeへ返す
 diskfree = subprocess.check_output('fsutil volume diskfree ' + os.environ.get('ram_dir'), shell=True)
@@ -31,19 +31,19 @@ src_path = os.path.dirname(src_fpath) # 入力ファイル名を除いたパス
 src_fname = re.sub('.ts', "", os.path.basename(src_fpath)) # 拡張子を除いた入力ファイル名
 out_dname = os.path.basename(src_path) #入力ファイルの最下層のフォルダ名
 if sys.argv[1] != src_fpath:
-	os.rename(sys.argv[1], src_fname + '.ts') # リネーム
+    os.rename(sys.argv[1], src_fname + '.ts') # リネーム
 # 最終出力先のディレクトリを作成
 sav_dir = os.environ.get('sav_dir')
 if os.path.isdir(sav_dir + '\\' + out_dname) == False:
-	os.makedirs(sav_dir + '\\' + out_dname)
+    os.makedirs(sav_dir + '\\' + out_dname)
 
 # rffフラグの判定(文字列検索)
 rff_str = os.environ.get('rff_str') # rffフラグの判定に使う変数その1
 rff_str = rff_str.split(',') # 1文字ずつリスト化されているのでカンマで区切って単語リスト化
 rff_check = 0 # rffフラグの判定に使う変数その2
 for i in rff_str:
-	if src_fname.find(i) != -1:
-		rff_check = 1 # rffフラグが見つかった場合1
+    if src_fname.find(i) != -1:
+        rff_check = 1 # rffフラグが見つかった場合1
 
 # VapourSynthスクリプトの中身の準備
 vpy_script = '''import vapoursynth as vs
@@ -83,10 +83,10 @@ returncode = subprocess.run(qaac_cmd, shell=True)
 qsv_cmd = '%QSVEncC% --avqsv %QSVEncC_option% -i' + ' "' + temp_dir + '\\' + src_fname + '.demuxed.m2v' + '" ' + '-o' + ' "' +temp_dir + '\\' + src_fname + '.264' + '"'
 qsv_rff = '%QSVEncC% --vpy-mt %QSVEncC_option% -i' + ' "' + temp_dir + '\\' + src_fname + '.vpy' + '" ' + '-o' + ' "' +temp_dir + '\\' + src_fname + '.264' + '"'
 if rff_check == 1:
-	returncode = subprocess.run(qsv_rff, shell=True)
+    returncode = subprocess.run(qsv_rff, shell=True)
 else:
-	returncode = subprocess.run(qsv_cmd, shell=True)
-	
+    returncode = subprocess.run(qsv_cmd, shell=True)
+
 # l-smashで映像mux
 lmuxerv_cmd = '%muxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.264' + '" ' + '-o' + ' "' + temp_dir + '\\' + src_fname + '.mp4' + '"'
 returncode = subprocess.run(lmuxerv_cmd, shell=True)
@@ -97,5 +97,5 @@ returncode = subprocess.run(lremuxer_cmd, shell=True)
 
 # 作業フォルダ内とlogファイルの削除
 for rm_file in glob.glob(temp_dir + '\\*'):
-	os.remove(rm_file)
+    os.remove(rm_file)
 os.remove(src_path + '\\' + src_fname + '.log')
