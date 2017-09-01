@@ -1,6 +1,7 @@
 # encoding :utf-8
 import sys, subprocess, os.path, re, os, glob
 import __auto_tweet
+import __read_log
 
 # subproc_resultが0以外の時、ツイートを行った後強制終了
 subproc_result = 0
@@ -46,19 +47,19 @@ src_path = os.path.dirname(src_fpath) # 入力ファイル名を除いたパス
 src_fname = re.sub('.ts', "", os.path.basename(src_fpath)) # 拡張子を除いた入力ファイル名
 out_dname = os.path.basename(src_path) #入力ファイルの最下層のフォルダ名
 if sys.argv[1] != src_fpath:
-    os.rename(sys.argv[1], src_fname + '.ts') # リネーム
+	os.rename(sys.argv[1], src_fname + '.ts') # リネーム
 # 最終出力先のディレクトリを作成
 sav_dir = os.environ.get('sav_dir')
 if os.path.isdir(sav_dir + '\\' + out_dname) == False:
-    os.makedirs(sav_dir + '\\' + out_dname)
+	os.makedirs(sav_dir + '\\' + out_dname)
 
 # rffフラグの判定(文字列検索)
 rff_str = os.environ.get('rff_str') # rffフラグの判定に使う変数その1
 rff_str = rff_str.split(',') # 1文字ずつリスト化されているのでカンマで区切って単語リスト化
 rff_check = 0 # rffフラグの判定に使う変数その2
 for i in rff_str:
-    if src_fname.find(i) != -1:
-        rff_check = 1 # rffフラグが見つかった場合1
+	if src_fname.find(i) != -1:
+		rff_check = 1 # rffフラグが見つかった場合1
 
 # VapourSynthスクリプトの中身の準備
 vpy_script = '''import vapoursynth as vs
@@ -107,9 +108,9 @@ qsv_rff = '%QSVEncC% --vpy-mt %QSVEncC_option% -i' + \
 		' "' + temp_dir + '\\' + src_fname + '.vpy' + '" ' + \
 		'-o' + ' "' +temp_dir + '\\' + src_fname + '.264' + '"'
 if rff_check == 1:
-    subproc_rc(subprocess.run(qsv_rff, shell=True).returncode)
+	subproc_rc(subprocess.run(qsv_rff, shell=True).returncode)
 else:
-    subproc_rc(subprocess.run(qsv_cmd, shell=True).returncode)
+	subproc_rc(subprocess.run(qsv_cmd, shell=True).returncode)
 
 # l-smashで映像mux
 lmuxerv_cmd = '%muxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.264' + '" ' + \
@@ -123,9 +124,9 @@ lremuxer_cmd = '%remuxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.mp4' + '"
 subproc_rc(subprocess.run(lremuxer_cmd, shell=True).returncode)
 
 # エンコード結果をツイート
-__auto_tweet.tweet(subproc_result)
+__auto_tweet.tweet(subproc_result, __read_log.read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
 
 # 作業フォルダ内とlogファイルの削除
 for rm_file in glob.glob(temp_dir + '\\*'):
-    os.remove(rm_file)
+	os.remove(rm_file)
 os.remove(src_path + '\\' + src_fname + '.log')
