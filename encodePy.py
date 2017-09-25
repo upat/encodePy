@@ -47,7 +47,7 @@ src_path = os.path.dirname(src_fpath) # 入力ファイル名を除いたパス
 src_fname = re.sub('.ts', "", os.path.basename(src_fpath)) # 拡張子を除いた入力ファイル名
 out_dname = os.path.basename(src_path) #入力ファイルの最下層のフォルダ名
 if sys.argv[1] != src_fpath:
-	os.rename(sys.argv[1], src_path + src_fname + '.ts') # リネーム
+	os.rename(sys.argv[1], src_path + '\\' + src_fname + '.ts') # リネーム
 # 最終出力先のディレクトリを作成
 sav_dir = os.environ.get('sav_dir')
 if os.path.isdir(sav_dir + '\\' + out_dname) == False:
