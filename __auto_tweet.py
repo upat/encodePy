@@ -23,7 +23,7 @@ def tweet(returncode, err_str): # returncode: subprocess.runの終了コード
 
 	# ツイート本文(定型文 + エンコード結果 + 投稿日時 + エラーログの内容)
 	tweet = now_time + ' ' + enc_result + '\n' + \
-			err_str + ' ' + '(ΦωΦ)にゃーん' + ' #auto_tweet'
+			err_str + ' ' + ' #auto_tweet'
 	
 	params = {"status" : tweet}
 	req = twitter.post(url, params = params)
