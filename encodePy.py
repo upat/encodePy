@@ -9,8 +9,17 @@ def subproc_rc(errcode):
 	global subproc_result # 最後に使うのでグローバル化
 	subproc_result += errcode
 	if subproc_result != 0:
-		__autotweet.tweet(subproc_result)
+		__auto_tweet.tweet(subproc_result, 'any errors')
 		sys.exit()
+
+# フォルダ内の任意の拡張子を持ったファイル名の検索用(.から始まるファイル対応版)
+def find_ext(file_dir, ext):
+    name_list = os.listdir(file_dir) # パスは含まれていない
+    # 取得したディレクトリ内のファイル名一覧に目的の拡張子があるか検索
+    for fn in name_list:
+        if fn.find(ext) > -1:
+            return fn
+    subproc_rc(1) # 無かった場合はエラー終了させる
 
 # 作業フォルダの選択
 if os.path.isfile(sys.argv[1]) == False:
@@ -81,12 +90,10 @@ dgindex_cmd = '%DGIndex% -i' + ' "' + src_path + '\\' + src_fname + '.ts' + '" '
 subproc_rc(subprocess.run(dgindex_cmd, shell=True).returncode)
 
 # delay除去処理
-aac_file = glob.glob(temp_dir + '\\*.aac')
-fawcl_cmd1 = '%fawcl%' + ' "' + aac_file[0] + '"'
+fawcl_cmd1 = '%fawcl%' + ' "' + temp_dir + '\\' + find_ext(temp_dir, '.aac') + '"'
 subproc_rc(subprocess.run(fawcl_cmd1, shell=True).returncode)
 # aacへ再変換
-wav_file = glob.glob(temp_dir + '\\*.wav')
-fawcl_cmd2 = '%fawcl%' + ' "' + wav_file[0] + '" "' + \
+fawcl_cmd2 = '%fawcl%' + ' "' + temp_dir + '\\' + find_ext(temp_dir, '.wav') + '" "' + \
 		temp_dir + '\\' + src_fname + '_nodelay.aac' +'"'
 subproc_rc(subprocess.run(fawcl_cmd2, shell=True).returncode)
 
@@ -103,10 +110,10 @@ subproc_rc(subprocess.run(qaac_cmd, shell=True).returncode)
 # qsvenccエンコード(rff_check == 1の時はvapoursynthで読み込み)
 qsv_cmd = '%QSVEncC% --avqsv %QSVEncC_option% -i' + \
 		' "' + temp_dir + '\\' + src_fname + '.demuxed.m2v' + '" ' + \
-		'-o' + ' "' +temp_dir + '\\' + src_fname + '.264' + '"'
+		'-o' + ' "' + temp_dir + '\\' + src_fname + '.264' + '"'
 qsv_rff = '%QSVEncC% --vpy-mt %QSVEncC_option% -i' + \
 		' "' + temp_dir + '\\' + src_fname + '.vpy' + '" ' + \
-		'-o' + ' "' +temp_dir + '\\' + src_fname + '.264' + '"'
+		'-o' + ' "' + temp_dir + '\\' + src_fname + '.264' + '"'
 if rff_check == 1:
 	subproc_rc(subprocess.run(qsv_rff, shell=True).returncode)
 else:
@@ -127,6 +134,6 @@ subproc_rc(subprocess.run(lremuxer_cmd, shell=True).returncode)
 __auto_tweet.tweet(subproc_result, __read_log.read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
 
 # 作業フォルダ内とlogファイルの削除
-for rm_file in glob.glob(temp_dir + '\\*'):
-	os.remove(rm_file)
+for rm_file in os.listdir(temp_dir):
+	os.remove(temp_dir + '\\' + rm_file)
 os.remove(src_path + '\\' + src_fname + '.log')
