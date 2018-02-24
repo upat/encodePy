@@ -3,6 +3,8 @@ import sys, subprocess, os.path, re, os, glob
 sys.path.append(os.environ.get('py_func'))
 from auto_tweet import tweet
 from read_log import read_log
+from get_video_res import get_video_res
+from def_var import *
 
 # subproc_resultが0以外の時、ツイートを行った後強制終了
 subproc_result = 0
@@ -25,14 +27,13 @@ def find_ext(file_dir, ext):
 # 作業フォルダの選択
 if os.path.isfile(sys.argv[1]) == False:
 	sys.exit() # 入力ファイルが存在しない場合強制終了
-elif os.path.isdir(os.environ.get('hdd_dir')[0:2]) == False:
+elif os.path.isdir(hdd_dir[0:2]) == False:
 	sys.exit() # 代替作業兼保存ストレージが存在しない場合強制終了
-elif os.path.isdir(os.environ.get('ram_dir')[0:2]) == True:
+elif os.path.isdir(ram_dir[0:2]) == True:
 	required_size = 6442450944 # 必要なディスク容量 (6GB)
 	max_file_size = 4831838208 # 最大ファイルサイズ (4.5GB)
 	# fsutil volume diskfreeでRAMDiskの空き容量を取得、バイト文字列にして返す
-	diskfree = subprocess.check_output('fsutil volume diskfree ' + \
-				os.environ.get('ram_dir')[0:2], shell=True)
+	diskfree = subprocess.check_output('fsutil volume diskfree ' + ram_dir[0:2], shell=True)
 	# バイト文字列をデコードした後、行ごとにリストへ格納
 	diskfree = diskfree.decode('cp932').split('\n')
 	# 最終行から特定の文字列を除く(win8.1の場合の出力)
@@ -41,11 +42,11 @@ elif os.path.isdir(os.environ.get('ram_dir')[0:2]) == True:
 	# (RAMDiskの空き容量 < 必要な容量) or (最大ファイルサイズ < ファイルの実サイズ)
 	if (diskfree < required_size) or \
 		(max_file_size < os.path.getsize(sys.argv[1])):
-		temp_dir = os.environ.get('hdd_dir') # hdd_dirを設定する
+		temp_dir = hdd_dir # hdd_dirを設定する
 	else:
-		temp_dir = os.environ.get('ram_dir') # ram_dirを設定する
+		temp_dir = ram_dir # ram_dirを設定する
 else:
-	temp_dir = os.environ.get('hdd_dir') # 代替ストレージが存在し、RAMDiskが無い場合
+	temp_dir = hdd_dir # 代替ストレージが存在し、RAMDiskが無い場合
 
 # 作業フォルダが存在しない場合、作成
 if os.path.isdir(temp_dir) == False:
@@ -59,14 +60,12 @@ out_dname = os.path.basename(src_path) #入力ファイルの最下層のフォ�
 if sys.argv[1] != src_fpath:
 	os.rename(sys.argv[1], src_path + '\\' + src_fname + '.ts') # リネーム
 # 最終出力先のディレクトリを作成
-sav_dir = os.environ.get('sav_dir')
 if os.path.isdir(sav_dir + '\\' + out_dname) == False:
 	os.makedirs(sav_dir + '\\' + out_dname)
 
 # rffフラグの判定(文字列検索)
-rff_str = os.environ.get('rff_str') # rffフラグの判定に使う変数その1
 rff_str = rff_str.split(',') # 1文字ずつリスト化されているのでカンマで区切って単語リスト化
-rff_check = 0 # rffフラグの判定に使う変数その2
+rff_check = 0 # rffフラグの判定に使う変数
 for i in rff_str:
 	if src_fname.find(i) != -1:
 		rff_check = 1 # rffフラグが見つかった場合1
@@ -85,51 +84,30 @@ f.write(vpy_script)
 f.flush()
 f.close()
 
-# DGIndexによる分離処理
-dgindex_cmd = '%DGIndex% -i' + ' "' + src_path + '\\' + src_fname + '.ts' + '" ' + \
-		'-od' + ' "' + temp_dir + '\\' + src_fname + '" ' + '%DGIndex_option%'
-subproc_rc(subprocess.run(dgindex_cmd, shell=True).returncode)
+# 動画を映像と音声に分離
+subproc_rc(subprocess.run(video_demux_cmd(src_path, src_fname, temp_dir), shell=True).returncode)
 
-# delay除去処理
-fawcl_cmd1 = '%fawcl%' + ' "' + temp_dir + '\\' + find_ext(temp_dir, '.aac') + '"'
-subproc_rc(subprocess.run(fawcl_cmd1, shell=True).returncode)
-# aacへ再変換
-fawcl_cmd2 = '%fawcl%' + ' "' + temp_dir + '\\' + find_ext(temp_dir, '.wav') + '" "' + \
-		temp_dir + '\\' + src_fname + '_nodelay.aac' +'"'
-subproc_rc(subprocess.run(fawcl_cmd2, shell=True).returncode)
-
+# 音声のdelay除去処理のためのエンコード
+subproc_rc(subprocess.run(aac_delay_fix_enc_cmd(temp_dir, find_ext(temp_dir, '.aac')), shell=True).returncode)
+# delay除去された音声のデコード
+subproc_rc(subprocess.run(aac_delay_fix_dec_cmd(temp_dir, find_ext(temp_dir, '.wav'), src_fname), shell=True).returncode)
 # l-smashで音声mux
-lmuxera_cmd = '%muxer% -i' + ' "' + temp_dir + '\\' + src_fname + '_nodelay.aac' + '" ' + \
-		'-o' + ' "' + temp_dir + '\\' + src_fname + '.aac' + '"'
-subproc_rc(subprocess.run(lmuxera_cmd, shell=True).returncode)
+subproc_rc(subprocess.run(audio_ls_muxer_cmd(temp_dir, src_fname), shell=True).returncode)
+# aacエンコード
+subproc_rc(subprocess.run(aac_enc_cmd(temp_dir, src_fname), shell=True).returncode)
 
-# qaacエンコード
-qaac_cmd = '%qaac% %qaac_option%' + ' "' + temp_dir + '\\' + src_fname + '.aac' + '" ' + \
-		'-o' + ' "' + temp_dir + '\\' + src_fname + '.m4a' + '"'
-subproc_rc(subprocess.run(qaac_cmd, shell=True).returncode)
-
-# qsvenccエンコード(rff_check == 1の時はvapoursynthで読み込み)
-qsv_cmd = '%QSVEncC% --avqsv %QSVEncC_option% -i' + \
-		' "' + temp_dir + '\\' + src_fname + '.demuxed.m2v' + '" ' + \
-		'-o' + ' "' + temp_dir + '\\' + src_fname + '.264' + '"'
-qsv_rff = '%QSVEncC% --vpy-mt %QSVEncC_option% -i' + \
-		' "' + temp_dir + '\\' + src_fname + '.vpy' + '" ' + \
-		'-o' + ' "' + temp_dir + '\\' + src_fname + '.264' + '"'
+# エンコードに使用する動画の解像度を取得
+video_res = get_video_res(temp_dir + '\\' + src_fname + '.demuxed.m2v')
+# 映像エンコード(rff_checkの値により分岐)
 if rff_check == 1:
-	subproc_rc(subprocess.run(qsv_rff, shell=True).returncode)
+	subproc_rc(subprocess.run(video_enc_rff_cmd(temp_dir, src_fname, video_res), shell=True).returncode)
 else:
-	subproc_rc(subprocess.run(qsv_cmd, shell=True).returncode)
+	subproc_rc(subprocess.run(video_enc_cmd(temp_dir, src_fname, video_res), shell=True).returncode)
 
 # l-smashで映像mux
-lmuxerv_cmd = '%muxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.264' + '" ' + \
-		'-o' + ' "' + temp_dir + '\\' + src_fname + '.mp4' + '"'
-subproc_rc(subprocess.run(lmuxerv_cmd, shell=True).returncode)
-
+subproc_rc(subprocess.run(video_ls_muxer_cmd(temp_dir, src_fname), shell=True).returncode)
 # l-smashで音声・映像の結合、保存先へ出力
-lremuxer_cmd = '%remuxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.mp4' + '" ' + \
-		'-i' + ' "' + temp_dir + '\\' + src_fname + '.m4a' + '" ' + \
-		'-o' + ' "' + sav_dir + '\\' + out_dname + '\\' + src_fname + '.mp4' + '"'
-subproc_rc(subprocess.run(lremuxer_cmd, shell=True).returncode)
+subproc_rc(subprocess.run(ls_remuxer_cmd(temp_dir, src_fname, sav_dir, out_dname), shell=True).returncode)
 
 # エンコード結果をツイート
 tweet(subproc_result, read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
@@ -138,3 +116,4 @@ tweet(subproc_result, read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
 for rm_file in os.listdir(temp_dir):
 	os.remove(temp_dir + '\\' + rm_file)
 os.remove(src_path + '\\' + src_fname + '.log')
+
