@@ -1,12 +1,13 @@
 # encoding :utf-8
-import sys, json, __twitter_key
+import sys, json
+from twitter_key import *
 from requests_oauthlib import OAuth1Session
 from datetime import datetime
 
-CK = __twitter_key.CONSUMER_KEY
-CS = __twitter_key.CONSUMER_SECRET
-AT = __twitter_key.ACCESS_TOKEN
-ATS = __twitter_key.ACCESS_TOKEN_SECRET
+CK = CONSUMER_KEY
+CS = CONSUMER_SECRET
+AT = ACCESS_TOKEN
+ATS = ACCESS_TOKEN_SECRET
 twitter = OAuth1Session(CK, CS, AT, ATS)
 
 # TwitterAPIエンドポイントの取得

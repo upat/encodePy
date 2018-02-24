@@ -1,7 +1,8 @@
 # encoding :utf-8
 import sys, subprocess, os.path, re, os, glob
-import __auto_tweet
-import __read_log
+sys.path.append(os.environ.get('py_func'))
+from auto_tweet import tweet
+from read_log import read_log
 
 # subproc_resultが0以外の時、ツイートを行った後強制終了
 subproc_result = 0
@@ -9,7 +10,7 @@ def subproc_rc(errcode):
 	global subproc_result # 最後に使うのでグローバル化
 	subproc_result += errcode
 	if subproc_result != 0:
-		__auto_tweet.tweet(subproc_result, 'any errors')
+		tweet(subproc_result, 'any errors')
 		sys.exit()
 
 # フォルダ内の任意の拡張子を持ったファイル名の検索用(.から始まるファイル対応版)
@@ -51,7 +52,7 @@ if os.path.isdir(temp_dir) == False:
 	os.makedirs(temp_dir)
 
 # ファイル名に存在するウムラウト文字をアルファベット、半角記号を全角記号に変換
-src_fpath = sys.argv[1].translate(str.maketrans('äöü&%^', 'aou＆％＾'))
+src_fpath = sys.argv[1].translate(str.maketrans('äöü', 'aou'))
 src_path = os.path.dirname(src_fpath) # 入力ファイル名を除いたパス
 src_fname = re.sub('.ts', "", os.path.basename(src_fpath)) # 拡張子を除いた入力ファイル名
 out_dname = os.path.basename(src_path) #入力ファイルの最下層のフォルダ名
@@ -131,7 +132,7 @@ lremuxer_cmd = '%remuxer% -i' + ' "' + temp_dir + '\\' + src_fname + '.mp4' + '"
 subproc_rc(subprocess.run(lremuxer_cmd, shell=True).returncode)
 
 # エンコード結果をツイート
-__auto_tweet.tweet(subproc_result, __read_log.read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
+tweet(subproc_result, read_log(re.sub('.ts', "", sys.argv[1]) + '.txt'))
 
 # 作業フォルダ内とlogファイルの削除
 for rm_file in os.listdir(temp_dir):
