@@ -27,10 +27,14 @@ def tweet(returncode, err_str): # returncode: subprocess.runの終了コード
 			err_str + ' ' + '#auto_tweet'
 	
 	params = {"status" : tweet}
-	req = twitter.post(url, params = params)
-
-	# ツイートする
-	if req.status_code == 200:
-		print('Tweet Succeed.')
-	else:
-		print("ERROR: %d" % req.status_code)
+	try:
+		# ツイートする
+		req = twitter.post(url, params = params)
+		# ツイート成功可否確認
+		if req.status_code == 200:
+			print('Tweet Succeed.')
+		else:
+			print('ERROR: %d' % req.status_code)
+	except:
+		# Twitterサーバーに接続出来なかった時
+		print('ERROR Network Connect Failed.')
