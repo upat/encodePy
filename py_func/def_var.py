@@ -3,6 +3,7 @@
 aac_enc =
 aac_delay_fix =
 video_enc =
+video_enc_nv =
 video_demux =
 ls_muxer =
 ls_remuxer =
@@ -55,6 +56,20 @@ def video_enc_cmd(td, sfn, size):
 def video_enc_rff_cmd(td, sfn, size):
 	cmd_str = video_enc + ' ' + \
 			'--vpy-mt --tff --vpp-deinterlace normal --codec h264 --cqp 22:25:27 --quality best --gop-len 300' + ' ' + size + ' ' + \
+			'-i' + ' ' + '"' + td + '\\' + sfn + '.vpy' + '"' + ' ' + \
+			'-o' + ' ' + '"' + td + '\\' + sfn + '.264' + '"'
+	return cmd_str
+
+def video_enc_nv_cmd(td, sfn, size):
+	cmd_str = video_enc_nv + ' ' + \
+			'--avcuvid --interlace tff --vpp-deinterlace normal --codec h264 --cqp 23:25:27 --preset quality --aq --aq-strength 0 --aq-temporal --mv-precision Q-pel --lookahead 16 --weightp --gop-len 300 --vpp-resize spline36' + ' ' + size + ' ' + \
+			'-i' + ' ' + '"' + td + '\\' + sfn + '.demuxed.m2v' + '"' + ' ' + \
+			'-o' + ' ' + '"' + td + '\\' + sfn + '.264' + '"'
+	return cmd_str
+
+def video_enc_nv_rff_cmd(td, sfn, size):
+	cmd_str = video_enc_nv + ' ' + \
+			'--vpy-mt --interlace tff --vpp-deinterlace normal --codec h264 --cqp 23:25:27 --preset quality --aq --aq-strength 0 --aq-temporal --mv-precision Q-pel --lookahead 16 --weightp --gop-len 300 --vpp-resize spline36' + ' ' + size + ' ' + \
 			'-i' + ' ' + '"' + td + '\\' + sfn + '.vpy' + '"' + ' ' + \
 			'-o' + ' ' + '"' + td + '\\' + sfn + '.264' + '"'
 	return cmd_str
