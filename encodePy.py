@@ -1,5 +1,5 @@
 # encoding :utf-8
-import sys, subprocess, os.path, re, os, glob
+import sys, subprocess, os.path, re, os, glob, shutil
 sys.path.append(os.environ.get('py_func'))
 from auto_tweet import tweet
 from read_log import read_log
@@ -32,13 +32,10 @@ elif os.path.isdir(hdd_dir[0:2]) == False:
 elif os.path.isdir(ram_dir[0:2]) == True:
 	required_size = 6442450944 # 必要なディスク容量 (6GB)
 	max_file_size = 4831838208 # 最大ファイルサイズ (4.5GB)
-	# fsutil volume diskfreeでRAMDiskの空き容量を取得、バイト文字列にして返す
-	diskfree = subprocess.check_output('fsutil volume diskfree ' + ram_dir[0:2], shell=True)
-	# バイト文字列をデコードした後、行ごとにリストへ格納
-	diskfree = diskfree.decode('cp932').split('\n')
-	# 最終行から特定の文字列を除く(win8.1の場合の出力)
-	diskfree = re.sub('利用可能な空きバイト総数     : ',"", diskfree[2])
-	diskfree = int(diskfree)
+
+	# 作業フォルダの空き容量を取得
+	diskfree = shutil.disk_usage(ram_dir[0:2]).free
+
 	# (RAMDiskの空き容量 < 必要な容量) or (最大ファイルサイズ < ファイルの実サイズ)
 	if (diskfree < required_size) or \
 		(max_file_size < os.path.getsize(sys.argv[1])):
