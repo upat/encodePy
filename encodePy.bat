@@ -1,12 +1,9 @@
 @echo off
 setlocal
 
-set python=
-set encpy=
-set py_func=
-
 :enc
-%python% %encpy% "%~1"
+cd /d %~dp0
+py encodePy.py "%~1"
 
 shift
 if "%~1" == "" (
