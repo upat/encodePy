@@ -96,6 +96,8 @@ class DefineConst:
 						'-c', 'copy',
 						'-f', 'mpegts',
 						'-', '|' ] + _cmd_str
+			# shell=Trueで利用するため、リストを文字列化
+			_cmd_str = ' '.join( _cmd_str )
 		else:
 			# 通常入力+出力
 			_cmd_str += [ '-i', str( self.srcfile_fullpath ),
@@ -127,11 +129,10 @@ class DefineConst:
 		
 		# rff判定
 		# https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/mpeg12dec.c
-		for _index, _value in enumerate( _stdout_json['frames'], 1 ): # 最初のフレームは省く
-			if not len( _stdout_json['frames'] ) == _index:           # 最後のフレームも省く
-				if 0 < _stdout_json[ 'frames' ][ _index ][ 'repeat_pict' ]: # 0ではないrepeat_pictが存在した場合
-					self.rff_flag = True
-					break
+		for _index, _value in enumerate( _stdout_json['frames'] ):
+			if 0 < _stdout_json[ 'frames' ][ _index ][ 'repeat_pict' ]: # 0ではないrepeat_pictが存在した場合
+				self.rff_flag = True
+				break
 		
 		# 標準エラー出力(テキスト)が任意の文字列を含む場合、オーディオ読み込みエラーフラグをTrue
 		if -1 < _stderr.find( '[aac @ ' ):

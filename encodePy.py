@@ -25,32 +25,25 @@ if probe_res.returncode != 0:
 	# エラー終了した場合終了
 	print( 'Failed ffprobe Process.' )
 	force_exit()
-
 # ffprobe出力解析
 dc.read_ffprobe_log( probe_res.stdout, probe_res.stderr )
 
-# オーディオ読み込みエラーフラグ確認
-if dc.audio_err_flag:
-	# エラー有り時
-	# shell=Trueでゴリ押しする苦肉の策(Popenを2つ立ち上げてパイプすると非同期のせいかffmpegがNVEncを置き去りにして勝手に終了するため)
-	enc_res = subprocess.Popen( ' '.join( dc.enc_cmd( True ) ), encoding='utf8', stdout=subprocess.PIPE, shell=True )
-	enc_res.wait() # 待ち
-	# ffmpegでパイプ入力した場合は空ファイル作成
-	Path( dc.outfile_path, dc.srcfile_filename + '_aac_error.txt' ).touch()
-else:
-	# エラー無し時
-	# エンコード(内部で映像サイズ判定) ※subprocess.runだと処理中の標準出力が見えないためPopenで実装
-	enc_res = subprocess.Popen( dc.enc_cmd(), encoding='utf8', stdout=subprocess.PIPE )
-	# subprocess.Popenの処理終了まで待ち
-	enc_res.wait()
+# エンコード処理(subprocess.runだと処理中の標準出力が見えないためPopenで実装)
+# shell=True(エラー有り時) ※Popenを2つ立ち上げてパイプすると非同期のせいかffmpegがNVEncを置き去りにして勝手に終了するため
+enc_res = subprocess.Popen( dc.enc_cmd(), encoding='utf8', stdout=subprocess.PIPE, shell=dc.audio_err_flag )
+# subprocess.Popenの処理終了まで待ち
+enc_res.wait()
 
 if enc_res.returncode != 0:
 	# エラー終了した場合終了
 	print( 'Failed Encode Process.' )
 	force_exit()
 
+if dc.audio_err_flag:
+	# 空ファイル作成(ffmpegでパイプ入力)
+	Path( dc.outfile_path, dc.srcfile_filename + '_aac_error.txt' ).touch()
 if dc.rff_flag:
-	# rff有りの場合は空ファイル作成
+	# 空ファイル作成(rff有り)
 	Path( dc.outfile_path, dc.srcfile_filename + '_find_rff.txt' ).touch()
 
 # ローカルサーバー稼働中 and 出力済みファイル有
