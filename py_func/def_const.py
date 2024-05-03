@@ -1,5 +1,5 @@
 # encoding: utf-8
-import cv2
+import json
 from pathlib import Path
 
 # エンコードに必要な入出力ファイルパス、コマンドオプションなどの定数管理を行うクラス
@@ -8,8 +8,8 @@ class DefineConst:
 	_nvencoder = r''
 	# ffmpeg
 	_ffmpeg = r''
-	# rff処理を行う入力ファイル文字列
-	_rffstr = [ '' ]
+	# ffprobe
+	_ffprobe = r''
 	# ファイル保存先(この後に入力ファイルの階層が続く)
 	_sav_dir = r''
 	# バックアップコピー保存場所
@@ -43,25 +43,23 @@ class DefineConst:
 			
 			self.outfile_fullpath  = Path( self.outfile_path, self.srcfile_filename + '.mp4' )  # 出力パスを作成
 			self.copyfile_fullpath = Path( self.copyfile_path, self.srcfile_filename + '.mp4' ) # バックアップコピー先のパスを作成
+			
+			self._video_height = 720     # 動画の高さ
+			self._video_width = 1280     # 動画の横幅
+			self.audio_err_flag = False  # オーディオ読み込みエラーフラグ
+			self.rff_flag = False       # rff判定フラグ
 		
 	# エンコーダーで使用するオプション文字列リストの生成
-	def enc_cmd( self, _retry = False ):
-		# python-opencvで映像サイズ読み出し
-		_video_capture = cv2.VideoCapture( self.srcfile_fullpath )
-		_video_height = _video_capture.get( cv2.CAP_PROP_FRAME_HEIGHT )
-		_video_width = _video_capture.get( cv2.CAP_PROP_FRAME_WIDTH )
-		_video_height = int( _video_height ) # floatになっているのでint変換
-		_video_width = int( _video_width )   # floatになっているのでint変換
-		
+	def enc_cmd( self, _error = False ):
 		# fHD(1080)以上ならHD(720)にリサイズ
-		if( 1080 <= _video_height ):
+		if( 1080 <= self._video_height ):
 			_video_size = '1280x720'
 		else:
 			# fHD(1080)未満ならとりあえずそのまま
-			_video_size = str( _video_width ) + 'x' + str( _video_height )
+			_video_size = str( self._video_width ) + 'x' + str( self._video_height )
 		
 		# コマンドオプション用リスト
-		cmd_str = [ DefineConst._nvencoder,
+		_cmd_str = [ DefineConst._nvencoder,
 					'--avhw',
 					'--audio-copy',
 					'--interlace', 'tff',
@@ -76,36 +74,65 @@ class DefineConst:
 					'--vpp-resize', 'spline64',
 					'--output-res', _video_size ]
 
-		# rffフラグ判定(コマンドオプション追加)
-		if self._check_rff():
-			# rffフラグあり用のインターレース解除
-			cmd_str += [ '--vpp-afs', 'preset=anime,rff=true' ]
+		# rff判定(コマンドオプション追加)
+		if self.rff_flag:
+			# rffあり用のインターレース解除
+			_cmd_str += [ '--vpp-afs', 'preset=anime,rff=true' ]
 		else:
-			# rffフラグなし(通常)用のインターレース解除+フレームログ出力
-			cmd_str += [ '--vpp-deinterlace', 'normal',
+			# rffなし(通常)用のインターレース解除+フレームログ出力
+			_cmd_str += [ '--vpp-deinterlace', 'normal',
 						'--log-framelist', 'debug_framelist.csv' ] # デバッグ出力(repeatに2以上の値があればrff)
 		
-		# エンコードをリトライする判定(入出力コマンドオプション追加+ffmpegコマンド追加)
-		if _retry:
+		# オーディオ読み込みエラーフラグ判定(入出力コマンドオプション追加+ffmpegコマンド追加)
+		if self.audio_err_flag:
 			# ffmpegからのパイプ入力+出力
-			cmd_str += [ '-i', '-' ,
+			_cmd_str += [ '-i', '-' ,
 						'-o', '"' + str( self.outfile_fullpath ) + '"' ] # ダブルクォーテーションはshell=Trueで使うため
 			# ffmpegからパイプ入力するため、NVEncのコマンドを後ろにする
-			cmd_str = [ DefineConst._ffmpeg,
+			_cmd_str = [ DefineConst._ffmpeg,
+						'-hide_banner',                                  # コンパイルオプション等のバナー情報を非表示
 						'-i', '"' + str( self.srcfile_fullpath ) + '"',  # ダブルクォーテーションはshell=Trueで使うため
 						'-ss', '1',                                      # 先頭の映像を1sを削る
 						'-c', 'copy',
 						'-f', 'mpegts',
-						'-', '|' ] + cmd_str
+						'-', '|' ] + _cmd_str
 		else:
 			# 通常入力+出力
-			cmd_str += [ '-i', str( self.srcfile_fullpath ),
+			_cmd_str += [ '-i', str( self.srcfile_fullpath ),
 						'-o', str( self.outfile_fullpath ) ]
-		return cmd_str
-
-	# rffフラグの判定(文字列検索)
-	def _check_rff( self ):
-		for i in DefineConst._rffstr:
-			if self.srcfile_filename.find( i ) != -1:
-				return True # rffフラグが見つかった場合
-		return False # rffフラグが無かった場合
+		return _cmd_str
+	
+	# ffprobe用コマンド生成
+	def ffprobe_cmd( self ):
+		_cmd_str = [ DefineConst._ffprobe,
+					'-i', self.srcfile_fullpath,
+					'-hide_banner',           # コンパイルオプション等のバナー情報を非表示
+					'-v', 'error',            # デコード時のエラーのみ出力(標準エラー出力)
+					'-select_streams', 'v',   # 映像ストリームのみ選択して出力
+					'-show_streams',          # ファイル情報出力(標準出力)
+					'-print_format', 'json',  # show_streamsをjson形式にする
+					'-show_entries', 'frame=repeat_pict' ] # rff有り時はrepeat_pictが1になる？
+		return _cmd_str
+	
+	# ffprobe出力解析
+	def read_ffprobe_log( self, _stdout, _stderr ):
+		# JSON形式で出力した標準出力(テキスト)をJSON化
+		_stdout_json = json.loads( _stdout )
+		# コーデック名でjson内を検索し、動画サイズを取得
+		for _index, _value in enumerate( _stdout_json['streams'] ):
+			if 'mpeg2video' == _stdout_json[ 'streams' ][ _index ][ 'codec_name' ]:
+				self._video_height = _stdout_json[ 'streams' ][ _index ][ 'height' ]
+				self._video_width = _stdout_json[ 'streams' ][ _index ][ 'width' ]
+				break
+		
+		# rff判定
+		# https://github.com/FFmpeg/FFmpeg/blob/master/libavcodec/mpeg12dec.c
+		for _index, _value in enumerate( _stdout_json['frames'], 1 ): # 最初のフレームは省く
+			if not len( _stdout_json['frames'] ) == _index:           # 最後のフレームも省く
+				if 0 < _stdout_json[ 'frames' ][ _index ][ 'repeat_pict' ]: # 0ではないrepeat_pictが存在した場合
+					self.rff_flag = True
+					break
+		
+		# 標準エラー出力(テキスト)が任意の文字列を含む場合、オーディオ読み込みエラーフラグをTrue
+		if -1 < _stderr.find( '[aac @ ' ):
+			self.audio_err_flag = True
