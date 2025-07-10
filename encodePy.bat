@@ -1,8 +1,8 @@
 @echo off
 setlocal
 
-:enc
 cd /d %~dp0
+:enc
 py encodePy.py "%~1"
 
 shift
